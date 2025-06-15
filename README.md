@@ -2,6 +2,7 @@
 
 `assayer` is a simple Python RQ-based tool that monitors ML model checkpoints in a given directory and launches evaluations offline as soon as new checkpoints are created during training. This tool can also be used to monitor multiple experiment directories simultaneously and launch evaluations for all of them in parallel.
 
+This tool is especially useful in cases when evaluations are expensive (e.g. LM harness evals) and you want to track model performance during training.
 
 ## Installation
 
