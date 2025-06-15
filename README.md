@@ -73,7 +73,7 @@ Assayer watches the directory and evaluates new checkpoints created in it. Even 
 > [!TIP]
 > You can tweak `--evaluator` method to submit evaluation jobs to a compute cluster instead of doing the whole evaluation within the method itself. This will keep evaluation workers free and ready to quickly evaluate new checkpoints as soon as they get created during training.
 
-The true power is this package is utilized when you use it to watch multiple directories simultaneously! All the specified directories will be monitored continuously and as soon as new checkpoints appear in directories, their respective evaluation jobs are launched in parallel:
+The true power of this package is utilized when it is used to watch multiple directories simultaneously! All the specified directories (e.g. dir1, dir2, dir3 in commands below) will be monitored continuously and as soon as new checkpoints appear in directories, their respective evaluation jobs are launched in parallel:
 ```
 python -m assayer.watch --directory dir1 --evaluator path/to/eval1.py:eval_fn1
 python -m assayer.watch --directory dir2 --evaluator path/to/eval2.py:eval_fn2
