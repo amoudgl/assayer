@@ -146,7 +146,7 @@ You can also monitor RQ jobs on a web-based dashboard by following the instructi
 
 assayer only launches evaluation for new checkpoints that are created during training, hence deletions won't mess up or launch any new evaluations. The detailed logic of assayer watch job is described below:
 
-assayer watch job receives a list of checkpoints from its predecessor job (from 5s before by default, specified by `--polling_interval`). The watch job fetches a fresh list of checkpoints from directory specified and compares this list with its predecessor checkpoints list. Then, it only launches for new checkpoints that are NOT there in predecessor checkpoints list. Checkout `assayer/jobs/watch_job.py` for code implementing this logic.
+assayer watch job receives a list of checkpoints from its predecessor job (from 5s before by default, specified by `--polling_interval`). The watch job fetches a fresh list of checkpoints from directory specified and compares this list with its predecessor checkpoints list. Then, it launches evaluations for new checkpoints that are NOT there in predecessor checkpoints list. Checkout `assayer/jobs/watch_job.py` for code implementing this logic.
 <br>
 </details>
 
