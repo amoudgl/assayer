@@ -1,6 +1,6 @@
 # assayer
 
-`assayer` is a simple Python RQ-based tool that monitors ML model checkpoints in a given directory and launches evaluations offline as soon as new checkpoints are created during training. This tool can also be used to monitor multiple experiment directories simultaneously and launch evaluations for all of them in parallel.
+`assayer` is a simple Python RQ-based tool that monitors ML model checkpoints in a given directory and launches evaluations offline as new checkpoints are created during training. It can also be used to monitor multiple experiment directories simultaneously and launch evaluations for all of them in parallel.
 
 This tool is especially useful in cases when evaluations are expensive (e.g. LM harness evals) and you want to track model performance during training.
 
@@ -40,12 +40,12 @@ pip install git+https://github.com/amoudgl/assayer.git
 
 ## Usage
 
-First, start Redis server in a terminal:
+**Start redis server**. First, start Redis server in a terminal:
 ```
 redis-server
 ```
 
-Implement evaluation method (e.g. `my_eval` here) that **only** takes checkpoint path as argument:
+**Specify evaluation function**. Next, implement evaluation function (e.g. `my_eval` here) that **only** takes checkpoint path as argument:
 ```python
 # in path/to/some_file.py:
 
@@ -55,40 +55,41 @@ def my_eval(checkpoint_path):
 
 See concrete example [here](#example-mnist).
 
-
 > [!NOTE]
-> You can implement rest of the evaluation logic anywhere as long as the evaluation method (e.g. `my_eval` above) that is passed to assayer can perform the evaluation as expected.
+> You can implement the evaluation logic anywhere as long as the evaluation function (e.g. `my_eval` above) that is passed to assayer can run the evaluation as expected when called with a checkpoint path.
 
+**Start watch**. Finally, to launch monitoring, run the watch command by providing path to checkpoints directory and implemented evaluation function like below:
+```bash
+# specify path to eval function in a file with ":"
+python -m assayer.watch --directory path/to/checkpoints_dir --evaluator path/to/some_file.py:my_eval
 
-In a separate terminal, run the watch command below and provide path to implemented evaluation method mentioned above in `--evaluator` argument. Absolute or relative path to evaluation method can be provided either via file path:
+# OR
+# specify eval function path in an installed module
+python -m assayer.watch --directory path/to/checkpoints_dir --evaluator my_module.submodule.my_eval
 ```
-python -m assayer.watch --directory path/to/watch_dir --evaluator path/to/some_file.py:my_eval
-```
-OR via installed module:
-```
-python -m assayer.watch --directory path/to/watch_dir --evaluator my_module.metrics.my_eval
-```
-
-Assayer watches the directory and evaluates new checkpoints created in it. Even if multiple checkpoints are created at the same time, eval jobs get submitted to Redis server which are fetched by different evaluation workers, leading to simultaneous evaluations of the checkpoints. 
 
 > [!TIP]
-> You can tweak `--evaluator` method to submit evaluation jobs to a compute cluster instead of doing the whole evaluation within the method itself. This will keep evaluation workers free and ready to quickly evaluate new checkpoints as soon as they get created during training.
+> You can tweak `--evaluator` function to submit evaluation jobs to a compute cluster (e.g. SLURM) instead of doing the whole evaluation within the function itself. This will keep evaluation workers free and ready to quickly evaluate new checkpoints as soon as they get created during training.
 
-The true power of this package is utilized when it is used to watch multiple directories simultaneously! All the specified directories (e.g. dir1, dir2, dir3 in commands below) will be monitored continuously and as soon as new checkpoints appear in directories, their respective evaluation jobs are launched in parallel:
+## Configuring
+
+**Multiple watch directories.** The true power of this package is utilized when it is used to watch multiple directories simultaneously! You can use the watch command on multiple experiment directories to monitor them in parallel (e.g. dir1, dir2, dir3 in commands below) and as soon as new checkpoints appear in directories, their respective evaluation jobs will be triggered asynchronously:
 ```
 python -m assayer.watch --directory dir1 --evaluator path/to/eval1.py:eval_fn1
 python -m assayer.watch --directory dir2 --evaluator path/to/eval2.py:eval_fn2
 python -m assayer.watch --directory dir3 --evaluator path/to/eval3.py:eval_fn3
 ```
 
-Number of watch and eval workers can be tweaked with `--num_watch_workers` and `--num_eval_workers` arguments:
+**Regex filtering.** `assayer` watch uses regex filter to pick checkpoints from watch directory. The filter can be customized by the user using the argument `--regex_filter` in watch command. By default, regex filter `"^.*\.(pt|pth|ckpt|model|state)$"` is used which picks all files in watch directory _and its subdirectories_ with extensions `.pt`, `.pth`, `.ckpt`, `.model` and `.state`. If your checkpoint file extension format isn't one of these, simply update the default regex filter to include it and pass it as an argument to the watch command.
+
+**Tuning number of workers.** Number of watch and eval workers can be tweaked with `--num_watch_workers` and `--num_eval_workers` arguments:
 ```
 python -m assayer.watch --num_eval_workers 5 --num_watch_workers 1 --directory dir1 --evaluator path/to/eval1.py:eval_fn1
 ```
-
 > [!TIP]
-> If checkpoints are created once in a while like in standard training and evaluation doesn't take long, 1 eval and 1 wait worker should be sufficient per watch directory. However, if evaluations take longer than the interval between checkpoint creations, then eval workers can be scaled accordingly to avoid stalling evaluation of latest checkpoints. More details [here](#how-it-works-under-the-hood).
+> If checkpoints are created once in a while like in standard training and evaluation doesn't take long, 1 eval and 1 wait worker should be sufficient per watch directory. However, if evaluations take longer than the interval between checkpoint creations, then eval workers can be scaled accordingly to avoid stalling evaluation of latest checkpoints. Read more about how assayer works under the hood [here](#how-it-works-under-the-hood).
 
+**Evaluating existing checkpoints.** If checkpoints already exist in a directory that you wish to watch using assayer, they will NOT be evaluated by default. Only new checkpoints created after launching the watch command will be evaluated. However, this behaviour can be changed by passing the argument `--eval_existing` to the assayer watch command which will trigger evaluation of all the existing checkpoints.
 
 View all the configurable flags using the command below:
 ```
@@ -115,7 +116,7 @@ I considered using [watchdog](https://github.com/gorakhargosh/watchdog) package 
 
 Navigate to `examples/mnist/` directory for instructions to try out assayer with MNIST training.
 
-The example launches CNN training on MNIST task and checkpoints are saved to a directory. These checkpoints are fetched by assayer to do evaluation on MNIST test set. In this example, a simple evaluation method (passed to assayer watch command as `--evaluator`) is implemented that loads model checkpoint from a given path, computes average loss + accuracy on MNIST test set and saves metrics as a json file in `examples/mnist/evals/` directory.
+The example launches CNN training on MNIST task and checkpoints are saved to a directory. These checkpoints are fetched by assayer to do evaluation on MNIST test set. In this example, a simple evaluation function (passed to assayer watch command as `--evaluator`) is implemented that loads model checkpoint from a given path, computes average loss + accuracy on MNIST test set and saves metrics as a json file in `examples/mnist/evals/` directory.
 
 
 ## FAQs
